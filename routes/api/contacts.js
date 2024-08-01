@@ -3,6 +3,15 @@ const router = express.Router();
 const Joi = require("joi");
 const Contact = require("../../models/ContactsSchema");
 const mongoose = require("mongoose");
+const passport = require("passport");
+
+
+const userSchema = Joi.object({
+  name: Joi.string().required(),
+  email: Joi.string().email().required(),
+  phone: Joi.string().required(),
+  favorite: Joi.boolean(),
+});
 
 const postSchema = Joi.object({
   name: Joi.string().required(),
@@ -18,9 +27,22 @@ const putSchema = Joi.object({
   favorite: Joi.boolean(),
 });
 
+const auth = (req, res, next) => {
+  passport.authenticate("jwt", { session: false }, (err, user) => {
+    console.log(user);
+    if (!user || err) {
+      const error = new Error("Unauthorized");
+      error.status = 401;
+      return next(error);
+    }
+    req.user = user;
+    next();
+  })(req, res, next);
+};
+
 
 // Route GET all contacts
-router.get("/", async (req, res, next) => {
+router.get("/", auth, async (req, res, next) => {
   try {
     const data = await Contact.find();
     res.status(200).json(data);
@@ -31,7 +53,7 @@ router.get("/", async (req, res, next) => {
 });
 
 // Route GET by ID
-router.get("/:contactId", async (req, res, next) => {
+router.get("/:contactId", auth, async (req, res, next) => {
   try {
     const contactId = req.params.contactId;
 
@@ -52,7 +74,7 @@ router.get("/:contactId", async (req, res, next) => {
 });
 
 // Route POST
-router.post("/", async (req, res) => {
+router.post("/", auth, async (req, res) => {
   try {
     const { error } = postSchema.validate(req.body);
     if (error) {
@@ -68,7 +90,7 @@ router.post("/", async (req, res) => {
 });
 
 // Route DELETE
-router.delete("/:contactId", async (req, res) => {
+router.delete("/:contactId", auth, async (req, res) => {
   try {
     const contactId = req.params.contactId;
 
@@ -90,7 +112,7 @@ router.delete("/:contactId", async (req, res) => {
 });
 
 // Route PUT
-router.put("/:contactId", async (req, res) => {
+router.put("/:contactId", auth, async (req, res) => {
   try {
     const { error } = putSchema.validate(req.body);
     if (error) {
@@ -153,7 +175,7 @@ const updateStatusContact = async (contactId, body) => {
 };
 
 
-router.patch('/:contactId/favorite', async (req, res) => {
+router.patch('/:contactId/favorite', auth, async (req, res) => {
   try {
     const { contactId } = req.params;
     const { favorite } = req.body;
