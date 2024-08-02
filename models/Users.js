@@ -18,7 +18,14 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  owner: {
+    type: String,
+    ref: 'user',
+  }
+
 });
+
+
 
 userSchema.methods.setPassword = async function (password) {
   this.password = await bcrypt.hash(password, 10);
