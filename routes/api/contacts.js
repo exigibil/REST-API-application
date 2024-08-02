@@ -6,6 +6,10 @@ const mongoose = require("mongoose");
 const passport = require("passport");
 
 
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 // const userSchema = Joi.object({
 //   name: Joi.string().required(),
 //   email: Joi.string().email().required(),
