@@ -1,13 +1,16 @@
 const express = require("express");
 const logger = require("morgan");
 const cors = require("cors");
+const mongoose = require("mongoose");
+const passport = require("passport");
+require("dotenv").config();
 
 const contactsRouter = require("./routes/api/contacts");
-const { default: mongoose } = require("mongoose");
+const authRouter = require("./routes/api/auth"); 
 
-const connectionString =
-  "mongodb+srv://adriantopa04:adiadi@goit0.t06usgd.mongodb.net/?retryWrites=true&w=majority&appName=Goit0";
 
+const connectionString = process.env.MONGO_URI;
+ 
   mongoose
   .connect(connectionString, {
     dbName: "db-contacts",
@@ -30,7 +33,11 @@ app.use(logger(formatsLogger));
 app.use(cors());
 app.use(express.json());
 
+app.use(passport.initialize());
+require("./config/passport")(passport); 
+
 app.use("/api/contacts", contactsRouter);
+app.use("/api/auth", authRouter); 
 
 app.use((req, res) => {
   res.status(404).json({ message: "Not found" });

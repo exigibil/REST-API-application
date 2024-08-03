@@ -21,7 +21,11 @@ const userSchema = new mongoose.Schema({
   owner: {
     type: String,
     ref: 'user',
-  }
+  },
+  subscription: { 
+    type: String, 
+    default: 'starter' 
+  }, 
 
 });
 
