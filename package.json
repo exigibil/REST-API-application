@@ -20,6 +20,7 @@
     "logger": "^0.0.1",
     "mongodb": "^6.8.0",
     "mongoose": "^8.5.1",
+    "mongoose-paginate-v2": "^1.8.3",
     "mongosh": "^2.2.12",
     "morgan": "1.10.0",
     "passport": "^0.7.0",

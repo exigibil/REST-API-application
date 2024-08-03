@@ -34,15 +34,47 @@ const auth = (req, res, next) => {
 };
 
 
-// Route GET all contacts
-router.get("/", auth, async (req, res, next) => {
+// GET by page
+router.get("/", async (req, res) => {
+  const { page = 1, limit = 20 } = req.query;
+  
+  const options = {
+    page: parseInt(page, 10),
+    limit: parseInt(limit, 10)
+  };
+  
   try {
-    const data = await Contact.find();
+    const data = await Contact.paginate({}, options); 
     res.status(200).json(data);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Internal Server Error" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
+});
+
+// Get Favorite (postman :3000/api/contacts/favorite?favorite=true)
+router.get("/favorite", async (req, res) => {
+  const { page = 1, limit = 20, favorite } = req.query;
+
+  console.log("Query Parameters:", req.query)
+
+  const options = {
+    page: parseInt(page, 10),
+    limit: parseInt(limit, 10)
+  };
+
+  const filter = {};
+  if (favorite !== undefined) {
+    filter.favorite = favorite === 'true';
+  }
+  console.log("Filter:", filter);
+
+  try {
+    const contacts = await Contact.paginate(filter, options);
+    res.status(200).json(contacts);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+  
 });
 
 // Route GET by ID
@@ -193,5 +225,7 @@ router.patch('/:contactId/favorite', auth, async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
+
 
 module.exports = router;

@@ -3,6 +3,7 @@ const router = express.Router();
 const Joi = require("joi");
 const User = require("../../models/Users");
 const jwt = require("jsonwebtoken");
+const authenticate = require('../api/authMiddleware');
 require("dotenv").config();
 
 const userSchema = Joi.object({
@@ -16,7 +17,18 @@ const loginSchema = Joi.object({
   password: Joi.string().required()
 });
 
-//Register
+router.get('/secure-data', authenticate, (req, res) => {
+  const user = req.user;
+  res.json({
+    message: 'This is secure data',
+    user: {
+      email: user.email,
+      subscription: user.subscription,
+    }
+  });
+});
+
+// Register
 router.post("/register", async (req, res) => {
   const { error } = userSchema.validate(req.body);
   if (error) {
@@ -60,9 +72,9 @@ router.post("/register", async (req, res) => {
   }
 });
 
-//Login
+// Login
 router.post("/login", async (req, res) => {
- const { error } = loginSchema.validate(req.body);
+  const { error } = loginSchema.validate(req.body);
   if (error) {
     return res.status(400).json({
       status: "error",
@@ -74,7 +86,7 @@ router.post("/login", async (req, res) => {
 
   const { email, password } = req.body;
 
-  try{
+  try {
     const user = await User.findOne({ email });
 
     if (!user || !(await user.isValidPassword(password))) {
@@ -87,29 +99,108 @@ router.post("/login", async (req, res) => {
         },
       });
     }
-  
+
     const payload = {
       id: user.id,
       username: user.username,
     };
-  
+
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1h" });
     res.json({
       status: "success",
       code: 200,
       data: {
         token,
-        user : {
-        email: user.email,
-        subscription : user.subscription,
-    }
+        user: {
+          email: user.email,
+          subscription: user.subscription,
+        }
       },
     });
   } catch (error) {
-    console.error(error); 
+    console.error(error);
     res.status(500).json({ error: "Internal Server Error" });
   }
+});
 
+// Logout
+router.post("/logout", authenticate, async (req, res) => {
+  const token = req.headers.authorization && req.headers.authorization.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({
+      status: "error",
+      code: 401,
+      message: "Unauthorized",
+      data: {
+        message: "No token provided",
+      },
+    });
+  }
+
+  try {
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({
+        status: "error",
+        code: 401,
+        message: "Unauthorized",
+        data: {
+          message: "User not found",
+        },
+      });
+    }
+
+    await user.removeToken(token);
+
+    res.status(204).send(); 
+  } catch (error) {
+    console.error("Logout error:", error);
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+    });
+  }
+});
+
+// User Data
+
+router.get("/current", authenticate, async (req, res) => {
+  const user = req.user;
+  res.status(200).json({
+    email: user.email,
+    subscription: user.subscription,
+  });
+});
+
+// Update the user's subscription.( :3000/api/auth/)
+router.patch("/", authenticate, async (req, res) => {
+  const { subscription } = req.body;
+
+
+  const validSubscriptions = ['starter', 'pro', 'business'];
+  if (!validSubscriptions.includes(subscription)) {
+    return res.status(400).json({
+      message: `Invalid subscription value. Must be one of ${validSubscriptions.join(", ")}`
+    });
+  }
+
+  try {
+    const user = req.user; 
+    user.subscription = subscription;
+    await user.save();
+    res.status(200).json({
+      message: "Subscription updated successfully",
+      user: {
+        email: user.email,
+        subscription: user.subscription
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 });
 
 module.exports = router;

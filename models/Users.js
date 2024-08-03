@@ -18,18 +18,12 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  owner: {
+  subscription: {
     type: String,
-    ref: 'user',
+    default: "starter",
   },
-  subscription: { 
-    type: String, 
-    default: 'starter' 
-  }, 
-
+  tokens: [{ type: String }],
 });
-
-
 
 userSchema.methods.setPassword = async function (password) {
   this.password = await bcrypt.hash(password, 10);
@@ -37,6 +31,16 @@ userSchema.methods.setPassword = async function (password) {
 
 userSchema.methods.isValidPassword = async function (password) {
   return await bcrypt.compare(password, this.password);
+};
+
+userSchema.methods.addToken = function (token) {
+  this.tokens.push(token);
+  return this.save();
+};
+
+userSchema.methods.removeToken = function (token) {
+  this.tokens = this.tokens.filter((t) => t !== token);
+  return this.save();
 };
 
 const User = mongoose.model("User", userSchema);
