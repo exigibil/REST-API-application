@@ -3,6 +3,8 @@ const router = express.Router();
 const Joi = require("joi");
 const Contact = require("../../models/ContactsSchema");
 const mongoose = require("mongoose");
+const passport = require("passport");
+
 
 const postSchema = Joi.object({
   name: Joi.string().required(),
@@ -18,20 +20,65 @@ const putSchema = Joi.object({
   favorite: Joi.boolean(),
 });
 
+const auth = (req, res, next) => {
+  passport.authenticate("jwt", { session: false }, (err, user) => {
+    console.log(user);
+    if (!user || err) {
+      const error = new Error("Unauthorized");
+      error.status = 401;
+      return next(error);
+    }
+    req.user = user;
+    next();
+  })(req, res, next);
+};
 
-// Route GET all contacts
-router.get("/", async (req, res, next) => {
+
+// GET by page
+router.get("/", async (req, res) => {
+  const { page = 1, limit = 20 } = req.query;
+  
+  const options = {
+    page: parseInt(page, 10),
+    limit: parseInt(limit, 10)
+  };
+  
   try {
-    const data = await Contact.find();
+    const data = await Contact.paginate({}, options); 
     res.status(200).json(data);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Internal Server Error" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 
+// Get Favorite (postman :3000/api/contacts/favorite?favorite=true)
+router.get("/favorite", async (req, res) => {
+  const { page = 1, limit = 20, favorite } = req.query;
+
+  console.log("Query Parameters:", req.query)
+
+  const options = {
+    page: parseInt(page, 10),
+    limit: parseInt(limit, 10)
+  };
+
+  const filter = {};
+  if (favorite !== undefined) {
+    filter.favorite = favorite === 'true';
+  }
+  console.log("Filter:", filter);
+
+  try {
+    const contacts = await Contact.paginate(filter, options);
+    res.status(200).json(contacts);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+  
+});
+
 // Route GET by ID
-router.get("/:contactId", async (req, res, next) => {
+router.get("/:contactId", auth, async (req, res, next) => {
   try {
     const contactId = req.params.contactId;
 
@@ -52,7 +99,7 @@ router.get("/:contactId", async (req, res, next) => {
 });
 
 // Route POST
-router.post("/", async (req, res) => {
+router.post("/", auth, async (req, res) => {
   try {
     const { error } = postSchema.validate(req.body);
     if (error) {
@@ -68,7 +115,7 @@ router.post("/", async (req, res) => {
 });
 
 // Route DELETE
-router.delete("/:contactId", async (req, res) => {
+router.delete("/:contactId", auth, async (req, res) => {
   try {
     const contactId = req.params.contactId;
 
@@ -90,7 +137,7 @@ router.delete("/:contactId", async (req, res) => {
 });
 
 // Route PUT
-router.put("/:contactId", async (req, res) => {
+router.put("/:contactId", auth, async (req, res) => {
   try {
     const { error } = putSchema.validate(req.body);
     if (error) {
@@ -153,7 +200,7 @@ const updateStatusContact = async (contactId, body) => {
 };
 
 
-router.patch('/:contactId/favorite', async (req, res) => {
+router.patch('/:contactId/favorite', auth, async (req, res) => {
   try {
     const { contactId } = req.params;
     const { favorite } = req.body;
@@ -178,5 +225,7 @@ router.patch('/:contactId/favorite', async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
+
 
 module.exports = router;
