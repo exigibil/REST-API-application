@@ -18,6 +18,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  avatarURL: {
+    type: String,
+    default: "",
+  },
   subscription: {
     type: String,
     default: "starter",

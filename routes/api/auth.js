@@ -4,7 +4,14 @@ const Joi = require("joi");
 const User = require("../../models/Users");
 const jwt = require("jsonwebtoken");
 const authenticate = require('../api/authMiddleware');
+const gravatar = require('gravatar');
+const multer = require('multer');
+const jimp = require('jimp');
+const path = require('path');
+const fs = require('fs');
 require("dotenv").config();
+
+const uploadTmp = multer({ dest: 'tmp/' });
 
 const userSchema = Joi.object({
   username: Joi.string().required(),
@@ -27,6 +34,10 @@ router.get('/secure-data', authenticate, (req, res) => {
     }
   });
 });
+
+
+
+
 
 // Register
 router.post("/register", async (req, res) => {
@@ -53,7 +64,7 @@ router.post("/register", async (req, res) => {
   }
 
   try {
-    const newUser = new User({ username, email });
+    const newUser = new User({ username, email, avatarURL: gravatar.url(email) });
     await newUser.setPassword(password);
     await newUser.save();
     res.status(201).json({
@@ -202,5 +213,34 @@ router.patch("/", authenticate, async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
+// Update the user's avatar.
+router.patch("/avatars", authenticate, uploadTmp.single('avatar'), async (req, res) => {
+
+  try {
+    const user = req.user;
+    const { path: tempPath, originalname } = req.file;
+    const ext = path.extname(originalname);
+    const filename = `${user._id}${ext}`;
+    const avatarsFolder = path.join(__dirname, "../../public/avatars");
+    const finalPath = path.join(avatarsFolder, filename);
+
+    const image = await jimp.read(tempPath);
+    await image.resize(250, 250).writeAsync(finalPath);
+
+    fs.unlinkSync(tempPath);
+
+    user.avatarURL = `/avatars/${filename}`;
+    await user.save();
+
+    res.status(200).json({
+      message: "Avatar updated successfully",
+      avatarURL: user.avatarURL
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 
 module.exports = router;
