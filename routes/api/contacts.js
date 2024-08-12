@@ -3,7 +3,7 @@ const router = express.Router();
 const Joi = require("joi");
 const Contact = require("../../models/ContactsSchema");
 const mongoose = require("mongoose");
-const passport = require("passport");
+const authenticate = require("../api/authMiddleware");
 
 
 const postSchema = Joi.object({
@@ -20,31 +20,18 @@ const putSchema = Joi.object({
   favorite: Joi.boolean(),
 });
 
-const auth = (req, res, next) => {
-  passport.authenticate("jwt", { session: false }, (err, user) => {
-    console.log(user);
-    if (!user || err) {
-      const error = new Error("Unauthorized");
-      error.status = 401;
-      return next(error);
-    }
-    req.user = user;
-    next();
-  })(req, res, next);
-};
 
 
 // GET by page
-router.get("/", async (req, res) => {
+router.get("/", authenticate, async (req, res) => {
   const { page = 1, limit = 20 } = req.query;
   
   const options = {
     page: parseInt(page, 10),
     limit: parseInt(limit, 10)
   };
-  
   try {
-    const data = await Contact.paginate({}, options); 
+    const data = await Contact.paginate({ owner: req.user._id }, options);
     res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -52,7 +39,7 @@ router.get("/", async (req, res) => {
 });
 
 // Get Favorite (postman :3000/api/contacts/favorite?favorite=true)
-router.get("/favorite", async (req, res) => {
+router.get("/favorite", authenticate, async (req, res) => {
   const { page = 1, limit = 20, favorite } = req.query;
 
   console.log("Query Parameters:", req.query)
@@ -62,7 +49,7 @@ router.get("/favorite", async (req, res) => {
     limit: parseInt(limit, 10)
   };
 
-  const filter = {};
+  const filter = {owner: req.user._id};
   if (favorite !== undefined) {
     filter.favorite = favorite === 'true';
   }
@@ -78,7 +65,7 @@ router.get("/favorite", async (req, res) => {
 });
 
 // Route GET by ID
-router.get("/:contactId", auth, async (req, res, next) => {
+router.get("/:contactId", authenticate, async (req, res, next) => {
   try {
     const contactId = req.params.contactId;
 
@@ -86,7 +73,7 @@ router.get("/:contactId", auth, async (req, res, next) => {
       return res.status(400).json({ error: "ID contact invalid" });
     }
 
-    const contact = await Contact.findById(contactId);
+    const contact = await Contact.findById({ _id: contactId, owner: req.user._id });
     if (contact) {
       res.status(200).json(contact);
     } else {
@@ -99,23 +86,29 @@ router.get("/:contactId", auth, async (req, res, next) => {
 });
 
 // Route POST
-router.post("/", auth, async (req, res) => {
+router.post("/", authenticate, async (req, res) => {
   try {
     const { error } = postSchema.validate(req.body);
     if (error) {
       return res.status(400).json({ message: error.details[0].message });
     }
-    const newItem = new Contact(req.body);
+    
+    const newItem = new Contact({
+      ...req.body,
+      owner: req.user._id
+    });
+
     await newItem.save();
     res.status(201).json(newItem);
   } catch (err) {
-    console.error(err);
+    console.error('Error adding new item:', err.message, err.stack);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
+
 // Route DELETE
-router.delete("/:contactId", auth, async (req, res) => {
+router.delete("/:contactId", authenticate, async (req, res) => {
   try {
     const contactId = req.params.contactId;
 
@@ -123,7 +116,7 @@ router.delete("/:contactId", auth, async (req, res) => {
       return res.status(400).json({ error: "invalid contactId" });
     }
 
-    const result = await Contact.deleteOne({ _id: contactId });
+    const result = await Contact.deleteOne({ _id: contactId, owner: req.user._id });
 
     if (result.deletedCount === 1) {
       res.status(200).json({ message: "Contact deleted successfully" });
@@ -137,7 +130,7 @@ router.delete("/:contactId", auth, async (req, res) => {
 });
 
 // Route PUT
-router.put("/:contactId", auth, async (req, res) => {
+router.put("/:contactId", authenticate, async (req, res) => {
   try {
     const { error } = putSchema.validate(req.body);
     if (error) {
@@ -156,7 +149,7 @@ router.put("/:contactId", auth, async (req, res) => {
     }
 
     const updatedContact = await Contact.findByIdAndUpdate(
-      contactId,
+      { _id: contactId, owner: req.user._id },
       {
         name,
         email,
@@ -178,18 +171,16 @@ router.put("/:contactId", auth, async (req, res) => {
 });
 
 
-const updateStatusContact = async (contactId, body) => {
+const updateStatusContact = async (contactId, body, userId) => {
   try {
- 
     if (!mongoose.Types.ObjectId.isValid(contactId)) {
       return null;
     }
 
-   
-    const updatedContact = await Contact.findByIdAndUpdate(
-      contactId, 
-      { favorite: body.favorite }, 
-      { new: true } 
+    const updatedContact = await Contact.findOneAndUpdate(
+      { _id: contactId, owner: userId },
+      { favorite: body.favorite },
+      { new: true }
     );
 
     return updatedContact;
@@ -200,7 +191,7 @@ const updateStatusContact = async (contactId, body) => {
 };
 
 
-router.patch('/:contactId/favorite', auth, async (req, res) => {
+router.patch('/:contactId/favorite', authenticate, async (req, res) => {
   try {
     const { contactId } = req.params;
     const { favorite } = req.body;
@@ -213,7 +204,7 @@ router.patch('/:contactId/favorite', auth, async (req, res) => {
       return res.status(400).json({ message: 'field favorite must be a boolean' });
     }
 
-    const updatedContact = await updateStatusContact(contactId, { favorite });
+    const updatedContact = await updateStatusContact(contactId, { favorite }, req.user._id);
 
     if (updatedContact) {
       res.status(200).json(updatedContact);
@@ -225,7 +216,6 @@ router.patch('/:contactId/favorite', auth, async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
-
 
 
 module.exports = router;
