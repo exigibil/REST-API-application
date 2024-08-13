@@ -27,6 +27,15 @@ const userSchema = new mongoose.Schema({
     default: "starter",
   },
   tokens: [{ type: String }],
+
+  verify: {
+    type: Boolean,
+    default: false,
+  },
+  verificationToken: {
+    type: String,
+    required: [true, "Verify token is required"],
+  },
 });
 
 userSchema.methods.setPassword = async function (password) {
