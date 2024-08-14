@@ -3,6 +3,7 @@ const logger = require("morgan");
 const cors = require("cors");
 const mongoose = require("mongoose");
 require("dotenv").config();
+const bodyParser = require("body-parser");
 
 const contactsRouter = require("./routes/api/contacts");
 const authRouter = require("./routes/api/auth"); 
@@ -32,7 +33,7 @@ app.use(logger(formatsLogger));
 app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
-
+app.use(bodyParser.json());
 
 
 app.use("/api/contacts", contactsRouter);
