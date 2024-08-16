@@ -5,23 +5,27 @@ const User = require("../../../models/Users");
 
 
 
+const { describe, it, beforeAll, afterAll, beforeEach, expect } = require('@jest/globals');
+
+
+
 describe("POST /api/users/login", () => {
 
-beforeAll(async () => {
-  await mongoose.connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
+  beforeAll(async () => {
+    await mongoose.connect(process.env.MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
   });
-});
 
-afterAll(async () => {
-  await mongoose.connection.dropDatabase();
-  await mongoose.connection.close();
-});
+  afterAll(async () => {
+    await mongoose.connection.dropDatabase();
+    await mongoose.connection.close();
+  });
 
-beforeEach(async () => {
-  await User.deleteMany({});
-});
+  beforeEach(async () => {
+    await User.deleteMany({});
+  });
 
   it("should return 200 status code and a token with user details", async () => {
     

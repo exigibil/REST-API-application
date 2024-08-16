@@ -2,8 +2,8 @@ const express = require("express");
 const logger = require("morgan");
 const cors = require("cors");
 const mongoose = require("mongoose");
-const passport = require("passport");
 require("dotenv").config();
+const bodyParser = require("body-parser");
 
 const contactsRouter = require("./routes/api/contacts");
 const authRouter = require("./routes/api/auth"); 
@@ -33,9 +33,8 @@ app.use(logger(formatsLogger));
 app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
+app.use(bodyParser.json());
 
-app.use(passport.initialize());
-require("./config/passport")(passport); 
 
 app.use("/api/contacts", contactsRouter);
 app.use("/api/users", authRouter); 

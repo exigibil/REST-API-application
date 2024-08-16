@@ -27,6 +27,19 @@ const userSchema = new mongoose.Schema({
     default: "starter",
   },
   tokens: [{ type: String }],
+
+  verify: {
+    type: Boolean,
+    default: false,
+  },
+  verificationToken: {
+    type: String,
+    required: [true, "Verify token is required"],
+    default: async () => {
+      const { nanoid } = await import("nanoid");
+      return nanoid();
+    },
+  },
 });
 
 userSchema.methods.setPassword = async function (password) {
